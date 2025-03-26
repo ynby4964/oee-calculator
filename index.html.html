@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OEE计算工具</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            font-family: 'Segoe UI', sans-serif;
+        }
+
+        body {
+            max-width: 600px;
+            margin: 20px auto;
+            padding: 15px;
+            background: #f0f2f5;
+        }
+
+        .calculator {
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.1);
+            padding: 20px;
+        }
+
+        .input-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #333;
+            font-weight: 500;
+        }
+
+        input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 16px;
+        }
+
+        .unit {
+            color: #666;
+            font-size: 0.9em;
+            margin-left: 5px;
+        }
+
+        button {
+            width: 100%;
+            padding: 12px;
+            background: #1890ff;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        button:hover {
+            background: #096dd9;
+        }
+
+        .result {
+            margin-top: 25px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 6px;
+        }
+
+        .result-item {
+            display: flex;
+            justify-content: space-between;
+            margin: 10px 0;
+            font-size: 16px;
+        }
+
+        .oee-value {
+            color: #1890ff;
+            font-weight: bold;
+            font-size: 1.2em;
+        }
+
+        .error {
+            color: #ff4d4f;
+            font-size: 0.9em;
+            margin-top: 5px;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="calculator">
+        <h2>OEE计算工具</h2>
+        
+        <div class="input-group">
+            <label>计划生产时长（小时）</label>
+            <input type="number" id="plannedTime" step="0.1">
+            <span class="unit">小时</span>
+            <div class="error" id="error1"></div>
+        </div>
+
+        <div class="input-group">
+            <label>实际生产时长（小时）</label>
+            <input type="number" id="actualTime" step="0.1">
+            <span class="unit">小时</span>
+            <div class="error" id="error2"></div>
+        </div>
+
+        <div class="input-group">
+            <label>理论生产速度</label>
+            <input type="number" id="speed">
+            <span class="unit">支/分钟</span>
+            <div class="error" id="error3"></div>
+        </div>
+
+        <div class="input-group">
+            <label>实际产量</label>
+            <input type="number" id="actualOutput">
+            <span class="unit">支</span>
+            <div class="error" id="error4"></div>
+        </div>
+
+        <div class="input-group">
+            <label>入库产量</label>
+            <input type="number" id="goodOutput">
+            <span class="unit">支</span>
+            <div class="error" id="error5"></div>
+        </div>
+
+        <button onclick="calculateOEE()">计算OEE</button>
+
+        <div class="result" id="result" style="display: none;">
+            <div class="result-item">
+                <span>时间利用率(A):</span>
+                <span id="A-value">--%</span>
+            </div>
+            <div class="result-item">
+                <span>性能效率(P):</span>
+                <span id="P-value">--%</span>
+            </div>
+            <div class="result-item">
+                <span>合格率(Q):</span>
+                <span id="Q-value">--%</span>
+            </div>
+            <div class="result-item">
+                <span>设备综合效率:</span>
+                <span class="oee-value" id="OEE-value">--%</span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function showError(elementId, message) {
+            const errorEl = document.getElementById(elementId);
+            errorEl.textContent = message;
+            errorEl.style.display = 'block';
+        }
+
+        function clearErrors() {
+            document.querySelectorAll('.error').forEach(el => {
+                el.style.display = 'none';
+            });
+        }
+
+        function validateInputs() {
+            clearErrors();
+            let isValid = true;
+
+            const plannedTime = parseFloat(document.getElementById('plannedTime').value);
+            const actualTime = parseFloat(document.getElementById('actualTime').value);
+            const speed = parseFloat(document.getElementById('speed').value);
+            const actualOutput = parseFloat(document.getElementById('actualOutput').value);
+            const goodOutput = parseFloat(document.getElementById('goodOutput').value);
+
+            if (isNaN(plannedTime) || plannedTime <= 0) {
+                showError('error1', '请输入有效的计划时长');
+                isValid = false;
+            }
+
+            if (isNaN(actualTime) || actualTime <= 0) {
+                showError('error2', '请输入有效的实际时长');
+                isValid = false;
+            } else if (actualTime > plannedTime) {
+                showError('error2', '实际时长不能超过计划时长');
+                isValid = false;
+            }
+
+            if (isNaN(speed) || speed <= 0) {
+                showError('error3', '请输入有效的生产速度');
+                isValid = false;
+            }
+
+            if (isNaN(actualOutput) || actualOutput <= 0) {
+                showError('error4', '请输入有效的实际产量');
+                isValid = false;
+            }
+
+            if (isNaN(goodOutput) || goodOutput < 0) {
+                showError('error5', '请输入有效的合格数量');
+                isValid = false;
+            } else if (goodOutput > actualOutput) {
+                showError('error5', '合格数量不能超过总产量');
+                isValid = false;
+            }
+
+            return isValid;
+        }
+
+        function calculateOEE() {
+            if (!validateInputs()) return;
+
+            const plannedTime = parseFloat(document.getElementById('plannedTime').value);
+            const actualTime = parseFloat(document.getElementById('actualTime').value);
+            const speed = parseFloat(document.getElementById('speed').value);
+            const actualOutput = parseFloat(document.getElementById('actualOutput').value);
+            const goodOutput = parseFloat(document.getElementById('goodOutput').value);
+
+            const A = (actualTime / plannedTime * 100).toFixed(2);
+            const P = (actualOutput / (actualTime * speed * 60) * 100).toFixed(2);
+            const Q = (goodOutput / actualOutput * 100).toFixed(2);
+            const OEE = ((A * P * Q) / 10000).toFixed(2);
+
+            document.getElementById('result').style.display = 'block';
+            document.getElementById('A-value').textContent = `${A}%`;
+            document.getElementById('P-value').textContent = `${P}%`;
+            document.getElementById('Q-value').textContent = `${Q}%`;
+            document.getElementById('OEE-value').textContent = `${OEE}%`;
+        }
+    </script>
+</body>
+</html>
